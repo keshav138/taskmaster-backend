@@ -34,14 +34,7 @@ class Project(models.Model):
     def __str__(self):
         return self.project_name
     
-    def save(self, *args, **kwargs):
-        # auto add creator when he creates the project
-        is_new = self.pk is None
-        super().save(*args, **kwargs)
-
-        if is_new:
-            self.team_members.add(self.created_by)
-            
+    
 
 class Task(models.Model):
     '''
@@ -83,7 +76,8 @@ class Task(models.Model):
         User,
         on_delete=models.SET_NULL,
         null=True,
-        blank=True
+        blank=True,
+        related_name='assigned_tasks'
     )
     
     status = models.CharField(
@@ -179,6 +173,8 @@ class Activity(models.Model):
     
     def __str__(self):
         return f"{self.user.username} - {self.action}"
+
+
 
     
 

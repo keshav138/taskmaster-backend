@@ -20,7 +20,7 @@ class Project(models.Model):
     )
     
     team_members = models.ManyToManyField(
-        'User',
+        User,
         related_name='projects',
         blank=True
     )

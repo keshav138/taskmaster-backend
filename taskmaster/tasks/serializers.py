@@ -2,6 +2,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
+from django.utils import timezone
 from .models import Project, Task, Comment, Activity
 
 
@@ -182,3 +183,236 @@ class ProjectCreateUpdateSerializer(serializers.ModelSerializer):
             instance.team_members.add(instance.created_by)
         
         return instance
+    
+    
+    
+    ## Task Serializers
+    
+class TaskListSerializer(serializers.ModelSerializer):
+    """
+    Light weight serializer for listing tasks. 
+    """
+
+    project = serializers.StringRelatedField() ## fetches project name from __str__
+    created_by = UserSerializer(read_only = True)
+    assigned_to = UserSerializer(read_only = True)
+    is_overdue = serializers.BooleanField(read_only = True) ## property in task model
+    comments_count = serializers.SerializerMethodField()
+
+        
+    class Meta:
+        model = Task
+
+        fields = [
+            'id',
+            'title',
+            'project',
+            'status',
+            'priority',
+            'created_by',
+            'assigned_to',
+            'due_date',
+            'is_overdue',
+            'comments_count',
+            'created_at',
+            'updated_at'
+        ]
+        
+    def get_comments_count(self, obj):
+        return obj.comments.count()
+        
+
+class TaskDetailSerializer(serializers.ModelSerializer):
+    """
+        Detailed serializer for single task view
+        Includes full related objects details
+    """
+
+    project = ProjectListSerializers()
+    created_by = UserSerializer(read_only=True)
+    assigned_to = UserSerializer(read_only=True)
+    is_overdue = serializers.BooleanField(read_only=True) ## property -> Task Model
+
+    class Meta:
+        model = Task
+        fields = [
+            'id',
+            'title',
+            'description',
+            'project',
+            'created_by',
+            'assigned_to',
+            'status',
+            'priority',
+            'due_date',
+            'is_overdue',
+            'created_at',
+            'updated_at'
+        ]
+
+
+class TaskCreateUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for creating and updating tasks
+    """
+
+    project_id = serializers.IntegerField(write_only=True)
+    assigned_to_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+
+    class Meta:
+        model = Task
+        fields = [
+            'id',
+            'title',
+            'description',
+            'project_id',
+            'assigned_to_id',
+            'status',
+            'priority',
+            'due_date'
+        ]
+
+        read_only_fields = ['id']
+    
+    
+    def validate_project_id(self, value):
+        ''' Ensure project exists and user who sent the request is a member'''
+        request = self.context.get('request')
+
+        try:
+            project = Project.objects.get(id=value)
+        except:
+            raise serializers.ValidationError('Project not found')
+        
+        if request.user not in project.team_members.all():
+            raise serializers.ValidationError('You are not a member of this project')
+        
+        return value
+    
+    def validate_assigned_to_id(self, value):
+        '''Ensure assigned user exists'''
+
+        if value is None:
+            return value
+        
+        try:
+            user = User.objects.get(id = value)
+        except:
+            raise serializers.ValidationError("User not found")
+        
+        return value
+    
+    def validate(self, attrs):
+        '''Cross field validation'''
+        project_id = attrs.get('project_id')
+        assigned_to_id = attrs.get('assigned_to_id')
+
+        if assigned_to_id:
+            project = Project.objects.get(id = project_id)
+            assigned_user = User.objects.get(id = assigned_to_id)
+
+            ## check if assigned user is in the project team
+
+            if assigned_user not in project.team_members.all():
+                raise serializers.ValidationError({
+                    'assigned_to_id' : "Assigned user must be a member of this project"
+                })
+            
+        ## validate due date is in the future
+        
+        due_date = attrs.get('due_date')
+        if due_date and due_date < timezone.now():
+            raise serializers.ValidationError({
+                'due_date' : "Due date must be in the future"
+            })
+        
+        return attrs
+    
+    
+    def create(self, validated_data):
+        """ Create Task """
+        
+        project_id = validated_data.pop('project_id')
+        assigned_to_id = validated_data.pop('assigned_to_id', None)
+
+        request = self.context.get('request')
+
+        task = Task.objects.create(
+            project_id = project_id, ## this is a suffix, project and suffix _id
+            created_by = request.user,
+            assigned_to_id = assigned_to_id,
+            **validated_data
+        )
+
+        return task
+    
+    def update(self, instance, validated_data):
+        ''' Update task '''
+        project_id = validated_data.pop('project_id', None)
+        assigned_to_id = validated_data.pop('assigned_to_id', None)
+
+        ## Update basic fields
+
+        instance.title = validated_data.get('title', instance.title)
+        instance.description = validated_data.get('description', instance.description)
+        instance.status = validated_data.get('status', instance.status)
+        instance.priority = validated_data.get('priority', instance.priority)
+        instance.due_date = validated_data.get('due_date', instance.due_date)
+
+        
+        # update project if required
+
+        if project_id:
+            instance.project_id = project_id
+        
+        ## update assigned to
+        if assigned_to_id is not None:
+            instance.assigned_to_id = assigned_to_id
+        
+        
+        instance.save()
+        return instance
+    
+
+class TaskStatusSerializer(serializers.Serializer):
+    ''' Serializer for changing task status'''
+    status = serializers.ChoiceField(choices=Task.STATUS_CHOICES)
+
+    def validate_status(self,value):
+        ''' Valid status transition'''
+        task = self.context.get('task')
+        current_status = task.status
+
+        # Define allowed transition
+
+        allowed_transition = {
+            'TODO' : ['IN_PROGRESS'],
+            'IN_PROGRESS' : ['IN_REVIEW', 'TODO'],
+            'IN_REVIEW' : ['DONE', 'IN_PROGRESS'],
+            'DONE' : ['IN_PROGRESS'] ## allowing reopening tasks
+        }
+
+        if value not in allowed_transition.get(current_status , []):
+            raise serializers.ValidationError(
+                f'Cannot transition from {current_status} to {value}'
+            )
+        
+        return value
+    
+
+class TaskAssignSerializer(serializers.Serializer):
+    ''' Serializer for assigning task to user'''
+    user_id = serializers.IntegerField()
+
+    def validate_user_id(self, value):
+        """ Ensure user exists and is in project"""
+        try:
+            user = User.objects.get(id=value)
+        except User.DoesNotExist:
+            raise serializers.ValidationError('User does not exist')
+        
+        task = self.context.get('task')
+        if user not in task.project.team_members.all():
+            raise serializers.ValidationError('User must be a part of the project to assign a task')
+
+        return value

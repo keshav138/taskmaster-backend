@@ -30,3 +30,35 @@ class IsProjectMember(permissions.BasePermission):
     
         ## for safe keeping incase a update,destroy, patch update falls here, so we dont return a None but a False instead.
         return False
+
+'''
+Task Permission
+'''
+
+class IsTaskProjectMember(permissions.BasePermission):
+    '''
+    Only members of the task's project can access it 
+    '''
+
+    def has_object_permission(self, request, view, obj):
+        return request.user in obj.project.team_members.all()
+
+
+class CanModifyTask(permissions.BasePermission):
+    '''
+    Task Creator or assigned user can modify it 
+    Any project member can view it
+    '''
+
+    def has_object_permission(self, request, view, obj):
+        ## Read permissions for all project users
+
+        if request.method in permissions.SAFE_METHODS:
+            return request.user in obj.project.team_members.all()
+        
+        ## write permissions for creator, assignee or projec creator
+        return (
+            request.user == obj.created_by or
+            request.user == obj.assigned_to or
+            request.user == obj.project.created_by
+        )

@@ -36,6 +36,10 @@ from .permissions import (
     IsCommentOwner
 )
 
+from .pagination import StandardResultsSetPagination, LargeResultsSetPagination
+from .filters import ProjectFilter, TaskFilter
+
+# ======================================================CODEBASE================================================================ #
 
 class RegisterView(generics.CreateAPIView):
     '''
@@ -121,13 +125,24 @@ class ProjectViewSet(viewsets.ModelViewSet):
     '''
 
     permission_classes = [IsAuthenticated]
+    pagination_class = StandardResultsSetPagination
+    filterset_class = ProjectFilter
+    search_fields = ['project_name', 'description']
+    ordering_fields = ['created_at', 'updated_at', 'project_name']
+    ordering = ['-created_at']
 
     def get_queryset(self):
         ''' Returns only projects where the user is a team member'''
+        """ Optimised using select_related and prefetch_related"""
 
         return Project.objects.filter(
             team_members=self.request.user
-        ).distinct().order_by('-created_at')
+        ).select_related(
+            'created_by' # fetch creator in every query
+        ).prefetch_related(
+            'team_members', # prefetech all team members
+            'tasks' # prefetch tasks for counts
+        ).distinct().order_by('-created_by')
     
     
     def get_serializer_class(self):
@@ -285,9 +300,19 @@ class ProjectViewSet(viewsets.ModelViewSet):
         """
 
         project = self.get_object()
-        limit = int(request.query_params.get('limit', 50))
+        activities = project.activities.all() ## doesnt actually fetch all , more like prepares the SQL query
 
-        activities = project.activities.all()[:limit]
+        # using paginator 
+        paginator = LargeResultsSetPagination
+        page = paginator.paginate_queryset(activites, request) 
+
+        if page is not None:
+           serialzier = ActivitySerializer(page, many=True) 
+           return paginator.get_paginated_response(serializer.data) ## this calls the custom paginated response function
+
+        """
+        This is a fallback code section, if by any chance the pagination fails, it return the entire activity query set.
+        """
         serializer = ActivitySerializer(activities, many=True)
 
         return Response({
@@ -315,13 +340,15 @@ class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
 
-    # Filtering Options
-    filterset_fields = ['project', 'status', 'priority', 'assigned_to']
+    """ we no longer need this, this was a drf shortcut for filtering, we now have a more advanced one """
+    # filterset_fields = ['project', 'status', 'priority', 'assigned_to']
 
-    # Search options
+    pagination_class = StandardResultsSetPagination
+    filterset_class = TaskFilter
+
+
+    # Search & Ordering options
     search_fields = ['title', 'description']
-
-    # Ordering options
     ordering_fields = ['created_at', 'due_date', 'priority', 'status']
     ordering = ['-created_at'] # default ordering
 
@@ -338,7 +365,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             project__team_members = user
         ).select_related(
             'project', 'created_by', 'assigned_to'
-        ).distinct()
+        ).prefetch_related('comments').distinct()
 
         #---------------------------------------------------------------------#
         

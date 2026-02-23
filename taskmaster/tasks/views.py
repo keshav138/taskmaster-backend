@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.exceptions import PermissionDenied
 
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
@@ -11,7 +12,7 @@ from django.utils import timezone
 
 from django.contrib.auth.models import User
 
-from .models import Project , Task
+from .models import Project, Task, Comment, Activity
 from .serializers import (
     RegistrationSerializer,
     UserSerializer,
@@ -22,13 +23,17 @@ from .serializers import (
     TaskDetailSerializer,
     TaskCreateUpdateSerializer,
     TaskAssignSerializer,
-    TaskStatusSerializer
+    TaskStatusSerializer,
+    CommentSerializer,
+    CommentCreateSerializer,
+    ActivitySerializer
     )
 from .permissions import (
     IsProjectCreator,
     IsProjectMember,
     IsTaskProjectMember,
-    CanModifyTask
+    CanModifyTask,
+    IsCommentOwner
 )
 
 
@@ -269,7 +274,30 @@ class ProjectViewSet(viewsets.ModelViewSet):
             'tasks': task_data
         })
     
-    
+    @action(detail=True, methods=['GET'])
+    def activities(self, request, pk=None):
+        """
+        Get recent activities for this project.
+        GET /api/projects/{id}/activities/ 
+
+        Optional -
+        -limit : number of activities to return (default 50)
+        """
+
+        project = self.get_object()
+        limit = int(request.query_params.get('limit', 50))
+
+        activities = project.activities.all()[:limit]
+        serializer = ActivitySerializer(activities, many=True)
+
+        return Response({
+            'project_id' : project.id,
+            'project_name' : project.project_name,
+            'count' : activities.count(),
+            'activities' : serializer.data
+        })
+
+
 ## Task Viewset
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -369,6 +397,57 @@ class TaskViewSet(viewsets.ModelViewSet):
         if self.action in ['update', 'partial_update', 'destroy']:
             return [IsAuthenticated(), CanModifyTask()]
         return [IsAuthenticated(), IsTaskProjectMember()]
+
+#===============================================ACTIVITY LOGGING================================================#
+
+    # overiding to track activity 
+    def perform_update(self, serializer):
+        """ Override to track who updated the task """
+        old_instance = self.get_object()
+        new_instance = serializer.save()
+
+        # Log changes with the actual user
+        self._log_task_changes(old_instance, new_instance, self.request.user)
+    
+    
+    def _log_task_changes(self, old_task, new_task, user):
+        """ Helper method to log task changes"""
+
+        # Status changes
+        if old_task.status != new_task.status:
+            Activity.objects.create(
+                project = new_task.project,
+                user = user,
+                action = 'changed task status',
+                details = f'Task {new_task.title} status changed from {old_task.status} to {new_task.status}'
+            )
+        
+        # Assignment change
+        if old_task.assigned_to != new_task.assigned_to:
+            if new_task.assigned_to:
+                Activity.objects.create(
+                    project = new_task.project,
+                    user = user,
+                    action = 'assigned task',
+                    details = f'Task {new_task.title} assigned to {new_task.assigned_to.username}'
+                )
+            elif old_task.assigned_to:
+                Activity.objects.create(
+                    project = new_task.project,
+                    user = user,
+                    action = 'unassigned task',
+                    details = f'Task {new_task.title} was unassigned'
+                )
+        
+        # Priority Changed
+        if old_task.priority != new_task.priority:
+            Activity.objects.create(
+                project = new_task.project,
+                user = user,
+                action = 'changed task priority',
+                details = f'Task {new_task.title} priority changed from {old_task.priority} to {new_task.priority}'
+            )
+#===============================================ACTIVITY LOGGING END================================================#
     
     
     @action(detail=False, methods=['GET'])
@@ -428,6 +507,14 @@ class TaskViewSet(viewsets.ModelViewSet):
             task.status = serializer.validated_data['status']
             task.save()
 
+            # Log with user
+            Activity.objects.create(
+                project = task.project,
+                user = request.user,
+                action = 'changed task status',
+                details = f'Task {task.title} change from {old_status} to {task.status}'
+            )
+
             return Response({
                 'message' : 'Status updated successfully',
                 'old_status' : old_status,
@@ -460,6 +547,14 @@ class TaskViewSet(viewsets.ModelViewSet):
             old_assigned = task.assigned_to
             task.assigned_to = user
             task.save()
+        
+            ## Log with user
+            Activity.objects.create(
+                project = task.project,
+                user = request.user,
+                action = 'assigned task',
+                details = f'Task {task.title} assigned to {user.username}'
+            )
 
             return Response({
                 'message' : f'Task assigned to {user.username}',
@@ -483,15 +578,97 @@ class TaskViewSet(viewsets.ModelViewSet):
         task.assigned_to = None
         task.save()
 
+        Activity.objects.create(
+            project = task.project,
+            user = request.user,
+            action = 'unassigned task',
+            details = f'Task {task.title} unassigned from {old_assignee} to None'
+        )
+
         return Response({
             'message' : 'Task Unassigned',
             'old_assignee' : old_assignee if old_assignee else None,
             'new_assignee' : task.assigned_to,
             'task' : TaskDetailSerializer(task).data
         })
+    
+    @action(detail=True, methods=['GET', 'POST'])
+    def comments(self, request, pk=None):
+        """
+        Get all comments for this task.
+        GET /api/tasks/{id}/comments/ -> List Comments
+        POST /api/tasks/{id}/comments/ -> Create Comments
+
+        Alternate to nested route if you prefer simpler URLS
+        """
+
+        ## grabs the task obj from the id in the url
+        task = self.get_object()
+        
+        if request.method == 'GET':
+            comments = task.comments.all().order_by('created_at') 
+            serializer = CommentSerializer(comments, many=True)
+
+            return Response({
+                'task_id' : task.id,
+                'task_title' : task.title,
+                'count' : comments.count(),
+                'comments:' : serializer.data
+            })
+        
+        elif request.method == "POST":
+            
+            data = request.data.copy()
+            data['task'] = task.id
+            
+            ## we're sending a context seperately because we're calling the serializer manually unlike how viewsets do automatically
+            serializer = CommentCreateSerializer(
+                data = data,
+                context = {'request' : request}
+            )
+
+            if serializer.is_valid():
+                serializer.save(user = request.user)
+                return Response(
+                    CommentSerializer(serializer.instance).data, ## serializer.instance is the comment object, just created
+                    status = status.HTTP_201_CREATED
+                )
+            return Response(serializer.errors, status = status.HTTP_400_BAD_REQUEST )
 
 
+## Comment Viewset
 
+class CommentViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet strictly for full CRUD operations on COMMENTS. 
+    URLS ; /api/comments/
+    """
 
+    permission_classes=[IsAuthenticated]
 
     
+    def get_queryset(self):
+        """ Get comments user has access to """
+        return Comment.objects.filter(
+            task__project__team_members = self.request.user,
+        ).select_related('user', 'task','task__project').distinct()
+    
+    def get_serializer_class(self):
+        # route to create comment serializer
+        if self.action == 'create':
+            return CommentCreateSerializer
+        return CommentSerializer
+    
+    def perform_create(self, serializer):
+        """
+            Create comment with user.
+            We dont pass task because serializer handles the text and task
+        """
+        serializer.save(user = self.request.user)
+
+
+    def get_permissions(self):
+        """ Only comment creator can edit/delete comments"""
+        if self.action in ['update', 'partial_update', 'destroy']:
+            return [IsAuthenticated(), IsCommentOwner()]
+        return [IsAuthenticated()]

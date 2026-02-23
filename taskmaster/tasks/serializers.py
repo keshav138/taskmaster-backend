@@ -416,3 +416,92 @@ class TaskAssignSerializer(serializers.Serializer):
             raise serializers.ValidationError('User must be a part of the project to assign a task')
 
         return value
+
+
+
+## Comments Serializer
+
+class CommentSerializer(serializers.ModelSerializer):
+    '''
+    Serializer for comments on a task 
+    '''
+
+    user = UserSerializer(read_only=True)
+    task_title = serializers.CharField(source='task.title', read_only=True)
+
+    class Meta:
+        model = Comment
+        fields = [
+            'id',
+            'task',
+            'task_title',
+            'user',
+            'text',
+            'created_at'
+        ]
+
+        read_only_fields = ['id', 'created_at', 'user', 'task']
+    
+    
+    # this is a required function, since put/patch requests all end up here
+    def validate_text(self, value):
+        """ Ensure comment is not empty"""
+
+        if not value or not value.strip():
+            raise serializers.ValidationError("Comment cannot be empty")
+        return value.strip()
+    
+
+
+class CommentCreateSerializer(serializers.ModelSerializer):
+    '''
+    Serializer for creating comments 
+    '''
+    
+    # the user and task are handled in the views
+    class Meta:
+        model = Comment
+        fields = ['text', 'task']
+    
+    def validate_text(self, value):
+        ''' Ensure text not emtpy'''
+        if not value or not value.strip():
+            raise serializers.ValidationError("Comment cannot be empty")
+        return value.strip()
+    
+    
+    def validate_task(self, value):
+        """
+        Security Check : The user sent a task id, 
+        Check if it exits
+        """
+
+        request = self.context.get('request')
+
+        if request.user not in value.project.team_members.all():
+            raise serializers.ValidationError('You do not have permission to comment on this task')
+        
+        return value
+    
+    
+class ActivitySerializer(serializers.ModelSerializer):
+    '''
+    Serializer for activity logs 
+    '''
+
+    user = UserSerializer(read_only=True)
+    project_name = serializers.CharField(source='project.project_name', read_only=True)
+
+    class Meta:
+        model = Activity
+        fields = [
+            'id',
+            'project',
+            'project_name',
+            'user',
+            'action',
+            'details',
+            'timestamp'
+        ]
+
+        read_only_fields = ['id', 'user', 'project', 'timestamp']

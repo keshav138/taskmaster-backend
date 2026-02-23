@@ -62,3 +62,15 @@ class CanModifyTask(permissions.BasePermission):
             request.user == obj.assigned_to or
             request.user == obj.project.created_by
         )
+
+
+## Comment Permissions
+
+class IsCommentOwner(permissions.BasePermission):
+    """
+    Only comment owner can edit/delte their comments 
+    """
+
+    def has_object_permission(self, request, view, obj):
+        # obj is a Comment
+        return obj.user == request.user

@@ -1,5 +1,8 @@
 import django_filters
 
+from django.utils import timezone
+from datetime import timedelta
+
 from .models import Project, Task
 from django.db.models import Q
 
@@ -26,6 +29,13 @@ class TaskFilter(django_filters.FilterSet):
     has_due_date = django_filters.BooleanFilter(method='filter_has_due_date')
     is_assigned = django_filters.BooleanFilter(method='filter_is_assigned')
 
+    # Dynamic boolean filters
+    assigned_to_me = django_filters.BooleanFilter(method='filter_assigned_to_me')
+    created_by_me = django_filters.BooleanFilter(method='filter_created_by_me')
+    overdue = django_filters.BooleanFilter(method='filter_overdue')
+    due_this_week = django_filters.BooleanFilter(method='filter_due_this_week')
+
+
     class Meta:
         model = Task
         fields = ['project', 'status', 'priority','assigned_to', 'created_by']
@@ -49,6 +59,35 @@ class TaskFilter(django_filters.FilterSet):
             return queryset.exclude(assigned_to__isnull=True) ## we exclude those where due_data is null
         return queryset.filter(assigned_to__isnull=True) ## we include those whose due_date is null
     
+    def filter_assigned_to_me(self, queryset, name, value):
+        ''' Filter tasks assigned to user making API request'''
+        if value:
+            return queryset.filter(assigned_to=self.request.user)
+        return queryset
+
+    def filter_created_by_me(self, queryset, name, value):
+        """ Filter tasks created by the user sending the request"""
+        if value:
+            return queryset.filter(created_by = self.request.user)
+        return queryset
+    
+    def filter_overdue(self, queryset, name, value):
+        """ Filter tasks which are overdue """
+        if value:
+            return queryset.filter(due_date__lt = timezone.now()).exclude(status='DONE')
+        return queryset
+    
+    def filter_due_this_week(self, queryset, name, value):
+        """ Filter task which are due this week """
+        if value:
+            now = timezone.now()
+            next_seven = now + timedelta(days=7)
+
+            return queryset.filter(
+                due_date__range = [now, next_seven]
+            ).exclude(status='DONE')
+        
+        return queryset
 
 
 class ProjectFilter(django_filters.FilterSet):

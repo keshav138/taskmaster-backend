@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'django_filters',
+    'drf_yasg',
 
     ## local apps
     'tasks',
@@ -72,6 +73,17 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS' : True,
     'BLACKLIST_AFTER_ROTATION' : True,
     'AUTH_HEADER_TYPES' : ('Bearer', )
+}
+
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer':{
+            'type': 'apiKey',
+            'name' : 'Authorization',
+            'in': 'header',
+            'description':'Type in the *value* input box below **Bearer &lt; JWT_TOKEN&gt;**'
+        }
+    }
 }
 
 MIDDLEWARE = [

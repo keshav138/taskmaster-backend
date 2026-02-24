@@ -505,3 +505,17 @@ class ActivitySerializer(serializers.ModelSerializer):
         ]
 
         read_only_fields = ['id', 'user', 'project', 'timestamp']
+    
+
+class PaginatedActivitySerializer(serializers.Serializer):
+    """
+    Dummy serializer stricty for Swagger documentation
+    Maps exactly to CustomPaginationResponse format.
+    """
+
+    count = serializers.IntegerField(help_text='Total number of activities')
+    total_pages = serializers.IntegerField(help_text='Total number of pages')
+    current_page = serializers.IntegerField(help_text='Current active page')
+    next = serializers.URLField(allow_null=True)
+    previous = serializers.URLField(allow_null=True)
+    results=ActivitySerializer(many=True) ## activity serializer data plug in

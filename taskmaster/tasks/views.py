@@ -26,7 +26,8 @@ from .serializers import (
     TaskStatusSerializer,
     CommentSerializer,
     CommentCreateSerializer,
-    ActivitySerializer
+    ActivitySerializer,
+    PaginatedActivitySerializer
     )
 from .permissions import (
     IsProjectCreator,
@@ -39,13 +40,29 @@ from .permissions import (
 from .pagination import StandardResultsSetPagination, LargeResultsSetPagination
 from .filters import ProjectFilter, TaskFilter
 
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
 # ======================================================CODEBASE================================================================ #
 
 class RegisterView(generics.CreateAPIView):
     '''
-    User Registration Endpoint
-    POST /api/auth/register
-    Deserialization
+    User Registration
+    
+    Create a new user account and recieve JWT tokens.
+    
+    **Required Body**
+    - username : Unique username (required)
+    - email : Valid email address (required)
+    - password : Strong Password (required, min 8 characters)
+    - password2 : Password confirmation (required)
+    - first_name : User's first name (optional)
+    - last_name : User's last name (optional)
+
+    **Response:**
+    - user: User object with basic info
+    - token: Access and refresh JWT tokens
+    - message: Success message
     '''
 
     queryset = User.objects.all()
@@ -98,9 +115,11 @@ class LogoutView(APIView):
 
 class CurrentUserView(APIView):
     '''
-    Get current user's info
-    GET api/auth/user
-    Serialization
+    Get Current User Information
+    
+    Retrieve information about the currently authenticated user.
+    
+    **Authentication Required:** Yes (JWT)
     '''
 
     permission_classes = [IsAuthenticated]
@@ -115,26 +134,45 @@ class CurrentUserView(APIView):
 
 class ProjectViewSet(viewsets.ModelViewSet):
     '''
-    Viewset for Project CRUD operations.
-    
-    list : Get all projects user is a member of
-    create : Create new project
-    retrieve : Get new project details
-    update/partial_update = Update Project
-    destroy : Delete project (creator only)
+    Project Management
+
+    Manage projects with full CRUD operations
+
+    **ENDPOINTS**
+    - GET /api/projects/ - List all projects (user is a member of)
+    - POST /api/projects/ - Create new project
+    - GET /api/projects/{id}/ - Get project details
+    - PUT/PATCH /api/projects/{id}/ - Update project
+    - DELETE /api/projects/{id}/ - Delete project
+    - POST /api/projects/{id}/add_member/ - Add team member
+    - POST /api/projects/{id}/remove_member/ - Remove team member
+    - GET /api/projects/{id}/activities/ - Get project activity feed
+
+    **Filtering**
+    - search: Search in project name and description
+    - created_by: Filter by creator user ID
+    - created_after: Filter by creation date (ISO format)
+    - created_before : Filter by creation date (ISO format)
+    - ordering: Sort by fields (created_at, updated_at, project_name)
     '''
 
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+
     pagination_class = StandardResultsSetPagination
     filterset_class = ProjectFilter
-    search_fields = ['project_name', 'description']
+    
     ordering_fields = ['created_at', 'updated_at', 'project_name']
     ordering = ['-created_at']
 
     def get_queryset(self):
         ''' Returns only projects where the user is a team member'''
         """ Optimised using select_related and prefetch_related"""
+        
+        if getattr(self,'swagger_fake_view',False):
+            return Project.objects.none()
 
+ 
         return Project.objects.filter(
             team_members=self.request.user
         ).select_related(
@@ -180,6 +218,21 @@ class ProjectViewSet(viewsets.ModelViewSet):
         serializer.save()
     
     
+    @swagger_auto_schema(
+        operation_description="Add a team member to the project",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['user_id'],
+            properties={
+                'user_id':openapi.Schema(type=openapi.TYPE_INTEGER, description='Used id to add')
+            }
+        ),
+        responses={
+            200: openapi.Response('Member added successfully'),
+            403: openapi.Response('Only project creator can add members'),
+            404: openapi.Response('User not found')
+        }
+    )
     @action(detail=True, methods=['post'])
     def add_member(self, request, pk=None):
         """
@@ -220,6 +273,22 @@ class ProjectViewSet(viewsets.ModelViewSet):
             }, status = status.HTTP_404_NOT_FOUND) 
         
     
+    @swagger_auto_schema(
+            operation_description="Remove a team member from the project",
+            request_body=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                required=['user_id'],
+                properties={
+                    'user_id':openapi.Schema(type=openapi.TYPE_INTEGER, description='User ID to add')
+                }
+            ),
+            responses={
+                200: openapi.Response('Member removed successfully'),
+                403: openapi.Response('Only project creator can remove members'),
+                400: openapi.Response('Cannot remove project creator'),
+                404: openapi.Response('User not found')
+            }
+        )
     @action(detail=True, methods=['post'])
     def remove_member(self, request, pk=None):
         """
@@ -266,29 +335,31 @@ class ProjectViewSet(viewsets.ModelViewSet):
             }, status=status.HTTP_404_NOT_FOUND)
 
     
+    @swagger_auto_schema(
+        operation_description="Get all tasks belonging to this project",
+        responses={200: TaskListSerializer(many=True)}
+    )
     @action(detail=True, methods=['get'] )
     def tasks(self, request, pk=None):
         '''
         Get all tasks in this project,
         GET /api/projects/{id}/tasks/
         '''
-
-        project = self.get_object()
+        project = request.get_object()
         tasks = project.tasks.all()
-
-        task_data = [{
-            'id': task.id,
-            'title': task.title,
-            'status' : task.status,
-            'priority' : task.priority,
-            'assigned_to' : task.assigned_to.username if task.assigned_to else None
-        } for task in tasks]
-
-        return Response({
-            'project' : project.project_name,
-            'tasks': task_data
-        })
+        return Response(TaskListSerializer(tasks, many=True))
     
+
+    
+    @swagger_auto_schema(
+            operation_description="Get activity feed for the project",
+            responses={
+                200: PaginatedActivitySerializer,
+                403: openapi.Response('Only project creator can remove members'),
+                400: openapi.Response('Cannot remove project creator'),
+                404: openapi.Response('User not found')
+            }
+        )
     @action(detail=True, methods=['GET'])
     def activities(self, request, pk=None):
         """
@@ -327,18 +398,47 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
 class TaskViewSet(viewsets.ModelViewSet):
     """
-    ViewSet for Task CRUD operations with filtering 
+    Task Management
 
-    list : Get all tasks with filters
-    create : Create new task
-    retrieve : Get single task details
-    update/partial_update : Update task
-    destroy : delete task
+    Manage tasks with advanced filtering and search
+
+    **ENDPOINTS:**
+    - GET /api/tasks/ - List all task (with filters)
+    - POST /api/tasks/ - Create new task
+    - GET /api/tasks/{id}/ - Get task details
+    - PUT/PATCH /api/tasks/{id}/ - Update Task
+    - DELETE /api/tasks/{id}/ - Delete task
+    - GET /api/tasks/my_tasks/ - Get tasks assigned to user
+    - GET /api/tasks/overdue/ - Get overdue tasks
+    - POST /api/tasks/{id}/assign/ - Assign task to user
+    - POST /api/tasks/{id}/unassign/ - Unassign task
+    - POST /api/tasks/{id}/change_status/ - Change task status
+    - GET /api/tasks/{id}/comments/ - Get task comments
+    - POST /api/tasks/{id}/comments/ - Add task comments
+
+    **FILTERING:**
+    - project: Filter by project ID
+    - status: Filter by status (TODO, INPROGRESS, IN_REVIEW, DONE)
+    - priority: Filter by priority (LOW, MEDIUM, HIGH, URGENT)
+    - assigned_to: Filter by assigned user ID
+    - created_by: Filter by creator by user ID 
+    - search: Search in title and description
+    - has_due_date: Filter tasks with/without due date (true/false)
+    - is_assigned: Filter assigned/not_assigned tasks (true/false)
+    - created_after: Filter by creation date
+    - created_before: Filter by creation date
+    - due_after: Filter by due_date
+    - due_before: Filter by due_date
+    - assigned_to_me: Get tasks assigned to current user (true)
+    - created_by_me: Get tasks created by current user (true)
+    - overdue: Get overdue tasks (true)
+    - due_this_week: Get tasks due this week (true)
+    - ordering: Sort by fields (created_at, due_date, priority, status)
 
     """
 
     permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
 
     """ we no longer need this, this was a drf shortcut for filtering, we now have a more advanced one """
     # filterset_fields = ['project', 'status', 'priority', 'assigned_to']
@@ -348,7 +448,6 @@ class TaskViewSet(viewsets.ModelViewSet):
 
 
     # Search & Ordering options
-    search_fields = ['title', 'description']
     ordering_fields = ['created_at', 'due_date', 'priority', 'status']
     ordering = ['-created_at'] # default ordering
 
@@ -357,6 +456,9 @@ class TaskViewSet(viewsets.ModelViewSet):
         Return tasks from projects where user is a team members.
         Support additional query for filtering
         '''
+
+        if getattr(self,'swagger_fake_view',False):
+            return Project.objects.none()
 
         user = self.request.user
 
@@ -477,6 +579,10 @@ class TaskViewSet(viewsets.ModelViewSet):
 #===============================================ACTIVITY LOGGING END================================================#
     
     
+    @swagger_auto_schema(
+        operation_description="Get all tasks assigned to the current user",
+        responses={200: TaskListSerializer(many=True)}
+    )
     @action(detail=False, methods=['GET'])
     def my_tasks(self, request):
         '''
@@ -493,6 +599,10 @@ class TaskViewSet(viewsets.ModelViewSet):
         })
     
     
+    @swagger_auto_schema(
+        operation_description="Get all overdue tasks",
+        responses={200: TaskListSerializer(many=True)}
+    )
     @action(detail=False, methods=['GET'])
     def overdue(self, request):
         '''
@@ -514,6 +624,24 @@ class TaskViewSet(viewsets.ModelViewSet):
     
     
     
+    @swagger_auto_schema(
+        operation_description="Change task status with validation",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['status'],
+            properties={
+                'status': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    enum=['TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE'],
+                    description='New status for the task'
+                )
+            }
+        ),
+        responses={
+            200: TaskDetailSerializer(),
+            400: openapi.Response('Invaid status transition')
+        }
+    )
     @action(detail=True, methods=['POST'])
     def change_status(self, request, pk=None):
         """
@@ -542,17 +670,27 @@ class TaskViewSet(viewsets.ModelViewSet):
                 details = f'Task {task.title} change from {old_status} to {task.status}'
             )
 
-            return Response({
-                'message' : 'Status updated successfully',
-                'old_status' : old_status,
-                'new_status' : task.status,
-                'task' : TaskDetailSerializer(task).data
-            })
+            return Response(TaskDetailSerializer(task).data)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     
     
+    @swagger_auto_schema(
+        operation_description="Assign a task to team member",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['user_id'],
+            properties={
+                'user_id' : openapi.Schema(type=openapi.TYPE_INTEGER, description='User ID to assign task to.')
+            }
+        ),
+        responses={
+            200: TaskDetailSerializer(),
+            400: openapi.Response('User must be a project member'),
+            404: openapi.Response('User not found')
+        }
+    )
     @action(detail=True, methods=['POST'])
     def assign(self, request, pk=None):
         """
@@ -583,16 +721,16 @@ class TaskViewSet(viewsets.ModelViewSet):
                 details = f'Task {task.title} assigned to {user.username}'
             )
 
-            return Response({
-                'message' : f'Task assigned to {user.username}',
-                'old_assinee' : old_assigned if old_assigned else None,
-                'new_assinee' : user.username,
-                'task' : TaskDetailSerializer(task).data
-            })
+            return Response(TaskDetailSerializer(task).data)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     
+
+    @swagger_auto_schema(
+        operation_description="Remove assignee from task",
+        responses={200: TaskDetailSerializer()}
+    )
     @action(detail=True, methods=['POST'])
     def unassign(self, request, pk=None):
         '''
@@ -612,13 +750,33 @@ class TaskViewSet(viewsets.ModelViewSet):
             details = f'Task {task.title} unassigned from {old_assignee} to None'
         )
 
-        return Response({
-            'message' : 'Task Unassigned',
-            'old_assignee' : old_assignee if old_assignee else None,
-            'new_assignee' : task.assigned_to,
-            'task' : TaskDetailSerializer(task).data
-        })
+        return Response(TaskDetailSerializer(task).data)
     
+    @swagger_auto_schema(
+        method='get',
+        operation_description="Get all comments for this user",
+        responses={
+            200: openapi.Response(
+                'List of comments', CommentSerializer(many=True) 
+            )
+        }
+    )
+    @swagger_auto_schema(
+        method='post',
+        operation_description="Add a new comment to this task",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['text'],
+            properties={
+                'text': openapi.Schema(type=openapi.TYPE_STRING, description="New comment text")
+            }
+        ),
+        responses={
+            200: openapi.Response("Comment created Successfully ",CommentSerializer()),
+            400: openapi.Response('Bad request - Invalid text')
+        }
+
+    )
     @action(detail=True, methods=['GET', 'POST'])
     def comments(self, request, pk=None):
         """
@@ -634,14 +792,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         
         if request.method == 'GET':
             comments = task.comments.all().order_by('created_at') 
-            serializer = CommentSerializer(comments, many=True)
-
-            return Response({
-                'task_id' : task.id,
-                'task_title' : task.title,
-                'count' : comments.count(),
-                'comments:' : serializer.data
-            })
+            return Response(CommentSerializer(comments, many=True))
         
         elif request.method == "POST":
             
@@ -676,6 +827,10 @@ class CommentViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """ Get comments user has access to """
+
+        if getattr(self,'swagger_fake_view',False):
+            return Project.objects.none()
+
         return Comment.objects.filter(
             task__project__team_members = self.request.user,
         ).select_related('user', 'task','task__project').distinct()

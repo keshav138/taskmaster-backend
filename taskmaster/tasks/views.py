@@ -345,7 +345,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         Get all tasks in this project,
         GET /api/projects/{id}/tasks/
         '''
-        project = request.get_object()
+        project = self.get_object()
         tasks = project.tasks.all()
         return Response(TaskListSerializer(tasks, many=True))
     
@@ -374,11 +374,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
         activities = project.activities.all() ## doesnt actually fetch all , more like prepares the SQL query
 
         # using paginator 
-        paginator = LargeResultsSetPagination
-        page = paginator.paginate_queryset(activites, request) 
+        paginator = LargeResultsSetPagination()
+        page = paginator.paginate_queryset(activities, request) 
 
         if page is not None:
-           serialzier = ActivitySerializer(page, many=True) 
+           serializer = ActivitySerializer(page, many=True) 
            return paginator.get_paginated_response(serializer.data) ## this calls the custom paginated response function
 
         """

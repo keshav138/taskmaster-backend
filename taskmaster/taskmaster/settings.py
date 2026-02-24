@@ -27,7 +27,7 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost, 127.0.0.1').split(',')
 
 
 # Application definition
@@ -68,11 +68,30 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME' : timedelta(hours = 1),
-    'REFESH_TOKEN_LIFETIME' : timedelta(days = 7),
+    'ACCESS_TOKEN_LIFETIME' : timedelta(hours = config('ACCESS_TOKEN_LIFETIME_HOURS', default=1, cast=int)),
+    'REFESH_TOKEN_LIFETIME' : timedelta(days = config('REFRESH_TOKEN_LIFETIME_DAYS', default=7, cast=int)),
     'ROTATE_REFRESH_TOKENS' : True,
     'BLACKLIST_AFTER_ROTATION' : True,
     'AUTH_HEADER_TYPES' : ('Bearer', )
+}
+
+# CORS FOR FRONTEND
+
+CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='').split(',')
+
+# Database
+# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME' : config('DB_NAME'),
+        'USER' : config('DB_USER'),
+        'PASSWORD' : config('DB_PASSWORD'),
+        'HOST' : config('DB_HOST', default='localhost'),
+        'PORT' : config('DB_PORT', default='5432'),
+         
+    }
 }
 
 SWAGGER_SETTINGS = {
@@ -115,21 +134,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'taskmaster.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME' : config('DB_NAME'),
-        'USER' : config('DB_USER'),
-        'PASSWORD' : config('DB_PASSWORD'),
-        'HOST' : config('DB_HOST'),
-        'PORT' : config('DB_PORT'),
-         
-    }
-}
 
 
 # Password validation

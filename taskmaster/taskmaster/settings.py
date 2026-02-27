@@ -70,7 +70,7 @@ REST_FRAMEWORK = {
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME' : timedelta(hours = config('ACCESS_TOKEN_LIFETIME_HOURS', default=1, cast=int)),
-    'REFESH_TOKEN_LIFETIME' : timedelta(days = config('REFRESH_TOKEN_LIFETIME_DAYS', default=7, cast=int)),
+    'REFRESH_TOKEN_LIFETIME' : timedelta(days = config('REFRESH_TOKEN_LIFETIME_DAYS', default=7, cast=int)),
     'ROTATE_REFRESH_TOKENS' : True,
     'BLACKLIST_AFTER_ROTATION' : True,
     'AUTH_HEADER_TYPES' : ('Bearer', )
@@ -78,7 +78,8 @@ SIMPLE_JWT = {
 
 # CORS FOR FRONTEND
 
-CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='').split(',')
+# CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='').split(',')
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 # Database

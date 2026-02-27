@@ -215,7 +215,8 @@ class TaskListSerializer(serializers.ModelSerializer):
             'is_overdue',
             'comments_count',
             'created_at',
-            'updated_at'
+            'updated_at',
+            'description'
         ]
         
     def get_comments_count(self, obj):

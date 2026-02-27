@@ -129,6 +129,20 @@ class CurrentUserView(APIView):
         return Response(serializer.data)
         
     
+class UserListView(generics.ListAPIView):
+    """
+    Returns a list of registered users.
+    
+    **ENDPOINTS**
+    - GET /api/users/ - Lists all users
+    """
+
+    permission_classes = [IsAuthenticated]
+    queryset = User.objects.all().order_by('username')
+    serializer_class = UserSerializer
+
+
+
     
 ## Project Viewset
 
@@ -347,7 +361,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         '''
         project = self.get_object()
         tasks = project.tasks.all()
-        return Response(TaskListSerializer(tasks, many=True))
+        return Response(TaskListSerializer(tasks, many=True).data)
     
 
     
@@ -792,7 +806,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         
         if request.method == 'GET':
             comments = task.comments.all().order_by('created_at') 
-            return Response(CommentSerializer(comments, many=True))
+            return Response(CommentSerializer(comments, many=True).data)
         
         elif request.method == "POST":
             

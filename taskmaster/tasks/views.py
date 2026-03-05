@@ -251,7 +251,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def add_member(self, request, pk=None):
         """
             Add a team member to the project.
-            POST /api/auth/{id}/add_member/
+            POST /api/project/{id}/add_member/
             Body : {"user_id" : 5}
         """
 
@@ -288,12 +288,12 @@ class ProjectViewSet(viewsets.ModelViewSet):
         
     
     @swagger_auto_schema(
-            operation_description="Remove a team member from the project",
+            operation_description="Remove a team member from the project and clean up their tasks",
             request_body=openapi.Schema(
                 type=openapi.TYPE_OBJECT,
                 required=['user_id'],
                 properties={
-                    'user_id':openapi.Schema(type=openapi.TYPE_INTEGER, description='User ID to add')
+                    'user_id':openapi.Schema(type=openapi.TYPE_INTEGER, description='User ID to remove')
                 }
             ),
             responses={
@@ -306,8 +306,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def remove_member(self, request, pk=None):
         """
-        Remove a team member from project.
-        POST /api/auth/{id}/remove_member/
+        Remove a team member from project and handle their remaining tasks.
+        POST /api/projects/{id}/remove_member/
         BODY : {'user_id' : 5}
         """
 
@@ -336,8 +336,37 @@ class ProjectViewSet(viewsets.ModelViewSet):
             
         try:
             user = User.objects.get(id = user_id)
+            
+            # 1. Unassign tasks that we're assigned to the user for this project
+            # using update() is optimised, since it executes a single sql query
+            
+            Task.objects.filter(project = project, assigned_to = user).update(assigned_to = None)
+            
+            # 2. Find the tasks created by the user to be removed
+            
+            tasks_created = Task.objects.filter(project = project, created_by = user)
+            created_count = tasks_created.count()
+            
+            
+            # mass update the tasks createdy by user to project owner
+            if created_count > 0:
+                tasks_created.update(created_by = project.created_by)
+
+            # 4. Remove the user from the team
             project.team_members.remove(user)
 
+            ## generate the activity log
+            activity_details = f"{user.username} was remove from the project {project.project_name}"
+            if created_count > 0:
+                activity_details += f' All {created_count} tasks originally created by {user.username} have been transferred to the project creator : {project.created_by.username}'
+            
+            Activity.objects.create(
+                project = project,
+                user = request.user,
+                action = 'removed team member',
+                details = activity_details
+            )
+            
             return Response({
                 'message' : f'{user.username} removed from project',
                 'project' : ProjectDetailSerializer(project).data

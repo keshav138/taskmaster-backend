@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from django.contrib.auth.models import User
 
-from .models import Project, Task, Comment, Activity
+from .models import Project, Task, Comment, Activity, Notification
 from .serializers import (
     RegistrationSerializer,
     UserSerializer,
@@ -27,7 +27,8 @@ from .serializers import (
     CommentSerializer,
     CommentCreateSerializer,
     ActivitySerializer,
-    PaginatedActivitySerializer
+    PaginatedActivitySerializer,
+    NotificationSerializer
     )
 from .permissions import (
     IsProjectCreator,
@@ -897,3 +898,54 @@ class CommentViewSet(viewsets.ModelViewSet):
         if self.action in ['update', 'partial_update', 'destroy']:
             return [IsAuthenticated(), IsCommentOwner()]
         return [IsAuthenticated()]
+    
+    
+## ---------- NOTIFICATIONS VIEWSET -----------##
+
+class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Viewset for viewing and managing user notifications
+    """
+    
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        # SECURE : Only fetch notifications belonging to the current user
+        return Notification.objects.filter(
+            recipient=self.request.user,
+            is_read=False
+        ).order_by('-created_at')
+    
+    @action(detail=True, methods=['post'])
+    def mark_read(self, request, pk=None):
+        """
+        POST /api/notifications/{id}/mark_read/
+        Marks a specific notification as read
+        """
+        
+        notification = self.get_object()
+        notification.is_read = True
+        notification.save()
+        
+        return Response({
+            'status' : 'Notification marked as read'
+        }, status=status.HTTP_200_OK)
+        
+    @action(detail=False, methods=['post'])
+    def mark_all_read(self, request, pk=None):
+        """
+        POST /api/notifications/mark_all_read/
+        Bulk update all users notifications to read
+        """
+        
+        unread_notifications  = self.get_queryset()
+        updated_count = unread_notifications.update(is_read=True)
+        
+        return Response({
+            'status':'Inbox Cleared',
+            'cleared_count': updated_count
+        }, status=status.HTTP_200_OK)
+        
+        
+    

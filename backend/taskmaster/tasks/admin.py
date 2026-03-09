@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Project, Task, Comment, Activity
+from .models import Project, Task, Comment, Activity, Notification
 
 # Register your models here.
 
@@ -65,3 +65,10 @@ class ActivityAdmin(admin.ModelAdmin):
     list_display_links = ['project']
 
 
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ['id', 'recipient', 'is_read', 'created_at', 'message']
+    list_filter = ['is_read', 'created_at']
+    search_fields = ['recipient', 'message']
+    readonly_fields = ['id']
+    list_display_links = ['recipient']

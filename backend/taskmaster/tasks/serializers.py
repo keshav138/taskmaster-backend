@@ -3,7 +3,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.utils import timezone
-from .models import Project, Task, Comment, Activity
+from .models import Project, Task, Comment, Activity, Notification
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -520,3 +520,11 @@ class PaginatedActivitySerializer(serializers.Serializer):
     next = serializers.URLField(allow_null=True)
     previous = serializers.URLField(allow_null=True)
     results=ActivitySerializer(many=True) ## activity serializer data plug in
+    
+    
+##------ NOTIFICATIONS SERIALIZER -------##
+
+class NotificationSerializer(serializers.Serializer):
+    class Meta:
+        model = Notification
+        fields = ['id', 'message', 'task', 'is_read', 'created_at']

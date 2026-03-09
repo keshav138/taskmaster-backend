@@ -33,6 +33,7 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost, 127.0.0.1').split(',
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -47,6 +48,7 @@ INSTALLED_APPS = [
     'django_filters',
     'drf_yasg',
     'corsheaders',
+    'channels',
 
     ## local apps
     'tasks',
@@ -136,7 +138,8 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'taskmaster.wsgi.application'
+# WSGI_APPLICATION = 'taskmaster.wsgi.application'
+ASGI_APPLICATION = 'taskmaster.asgi.application'
 
 
 
@@ -175,3 +178,14 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# ------------- CHANNEL & REDIS CONFIGURATION -----------
+
+CHANNEL_LAYERS = {
+    'default' : {
+        'BACKEND' : "channels_redis.core.RedisChannelLayer",
+        'CONFIG' : {
+            "hosts" : [("127.0.0.1", 6379)], # default redis port 
+        },
+    },
+}

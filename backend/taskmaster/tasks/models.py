@@ -173,3 +173,39 @@ class Activity(models.Model):
     
     def __str__(self):
         return f"{self.user.username} - {self.action}"
+
+
+class Notification(models.Model):
+    """
+    Docstring for Notifications
+    
+    Personalized notifications for projects/tasks actions on users.
+    """
+    
+    ## CASCADE here so that if the user is deleted, their notifications will also be deleted
+    recipient = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='notifications'
+    )
+    
+    task = models.ForeignKey(
+        Task,
+        on_delete=models.CASCADE,
+        related_name='notifications',
+        null=True,
+        blank=True
+    )
+    
+    message = models.CharField(max_length=256)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name_plural = 'Notifications'
+        
+    def __str__(self):
+        return f'To {self.recipient.username} : {self.message} '
+    
+    

@@ -1,0 +1,9 @@
+{
+  "Appearance-dark@@theme-dark-style-select": "theme-dark-background-darker",
+  "Appearance-dark@@card-layout-open-dark": true,
+  "catppuccin-theme-settings@@catppuccin-theme-dark": "ctp-mocha",
+  "catppuccin-theme-settings@@catppuccin-theme-accents": "ctp-accent-mauve",
+  "Appearance@@bg_dark@@light": "#05010D",
+  "Appearance@@accent@@light": "#081B51",
+  "Appearance@@accent@@dark": "#260707"
+}

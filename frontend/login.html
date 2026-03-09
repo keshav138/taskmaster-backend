@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Access - Taskmaster</title>
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=Space+Grotesk:wght@400;700;900&family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            space: ['Space Grotesk', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            tm: { dark: '#0c0f14', border: '#21262e', accent: '#d17842', text: '#aeaeae', muted: '#8b8e98' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom Brutalist Input CSS - Updated for Light Background */
+    .form-wrapper .label {
+      display: flex; flex-direction: column; gap: 5px; height: fit-content; position: relative; margin-bottom: 0.5rem;
+    }
+    .form-wrapper .label:has(input:focus) .title,
+    .form-wrapper .label:has(input:not(:placeholder-shown)) .title {
+      top: -10px; left: 10px; color: #d17842; font-size: 11px;
+    }
+    .form-wrapper .label .title {
+      padding: 0 5px; transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1); font-size: 13px; color: #6b7280;
+      font-weight: 600; width: fit-content; top: 14px; position: absolute; left: 15px; 
+      background: #ffffff; /* Matches the new white background */
+      pointer-events: none;
+    }
+    .form-wrapper .input-field {
+      width: 100%; height: 50px; text-indent: 15px; border-radius: 8px; outline: none;
+      background-color: transparent; border: 2px solid #e5e7eb; transition: all 0.3s;
+      caret-color: #d17842; color: #111827; font-family: 'Inter', sans-serif; font-weight: 500;
+    }
+    .form-wrapper .input-field:hover { border-color: rgba(209, 121, 66, 0.4); }
+    .form-wrapper .input-field:focus { border-color: #d17842; box-shadow: 0 0 0 4px rgba(209, 121, 66, 0.1); }
+    .form-wrapper .input-field::placeholder { color: transparent; } /* Hide default placeholder */
+
+    .checkout-btn {
+      width: 100%; margin-top: 10px; padding: 15px 0; border-radius: 8px; font-weight: 800;
+      text-transform: uppercase; letter-spacing: 1px; font-family: 'Space Grotesk', sans-serif;
+      cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;
+      color: #ffffff; background: #d17842; border: 2px solid transparent; transition: all 200ms;
+    }
+    .checkout-btn:active { transform: scale(0.98); }
+    .checkout-btn:hover:not(:disabled) { color: #d17842; border: 2px solid #d17842; background: transparent; }
+    .checkout-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Right Side Poster Text Alignment Utilities */
+    .vertical-text { writing-mode: vertical-rl; transform: rotate(180deg); }
+    
+    /* Subtle Background Grid */
+    .bg-grid { background-size: 40px 40px; background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px); }
+  </style>
+</head>
+<body class="bg-[#050505] text-white h-screen w-full flex overflow-hidden selection:bg-tm-accent selection:text-white">
+
+  <div class="w-full lg:w-[40%] h-full flex flex-col relative z-20 border-r border-gray-200 bg-white overflow-y-auto">
+    
+    <div class="flex-1 flex flex-col justify-center px-8 sm:px-16 py-12 form-wrapper w-full max-w-xl mx-auto">
+      
+      <div class="mb-10 flex items-center gap-3">
+        <div class="w-10 h-10 bg-gray-900 text-white font-space font-black text-xl flex items-center justify-center rounded">T</div>
+        <div>
+          <h1 class="font-space font-bold text-xl tracking-tight leading-none text-gray-900">TASKMASTER</h1>
+          <p class="font-mono text-[10px] text-gray-500 uppercase tracking-widest mt-1">Auth_Gateway // v2.0</p>
+        </div>
+      </div>
+
+      <div id="auth-error" class="hidden mb-6 p-4 text-xs font-mono text-red-700 border border-red-200 bg-red-50 rounded uppercase tracking-wider"></div>
+
+      <form id="form-login" class="flex flex-col gap-4 transition-opacity duration-300">
+        <div class="mb-2">
+          <h2 class="font-space text-3xl font-bold text-gray-900 mb-1">Enter Zone</h2>
+          <p class="text-sm text-gray-500">Log in to access your projects.</p>
+        </div>
+
+        <label class="label">
+          <input id="login-username" class="input-field" type="text" placeholder="Username" required />
+          <span class="title">USERNAME</span>
+        </label>
+        
+        <label class="label">
+          <input id="login-password" class="input-field" type="password" placeholder="Password" required />
+          <span class="title">PASSWORD</span>
+        </label>
+
+        <button id="btn-login-submit" class="checkout-btn" type="submit">Connect</button>
+
+        <div class="mt-6 text-center text-sm font-medium text-gray-500">
+          NO CLEARANCE? 
+          <button type="button" data-action="toggle-auth" class="text-tm-accent hover:text-gray-900 transition-colors ml-1 uppercase font-bold tracking-wider">Request Access</button>
+        </div>
+      </form>
+
+      <form id="form-register" class="hidden flex flex-col gap-3 transition-opacity duration-300">
+        <div class="mb-2">
+          <h2 class="font-space text-3xl font-bold text-gray-900 mb-1">New ID</h2>
+          <p class="text-sm text-gray-500">Establish your system credentials.</p>
+        </div>
+
+        <label class="label">
+          <input id="reg-username" class="input-field" type="text" placeholder="Username" required />
+          <span class="title">USERNAME</span>
+        </label>
+
+        <div class="flex gap-3 w-full">
+          <label class="label flex-1">
+            <input id="reg-first_name" class="input-field" type="text" placeholder="First Name" required />
+            <span class="title">FIRST NAME</span>
+          </label>
+          <label class="label flex-1">
+            <input id="reg-last_name" class="input-field" type="text" placeholder="Last Name" required />
+            <span class="title">LAST NAME</span>
+          </label>
+        </div>
+
+        <label class="label">
+          <input id="reg-email" class="input-field" type="email" placeholder="Email" required />
+          <span class="title">EMAIL ADDRESS</span>
+        </label>
+        
+        <div class="flex gap-3 w-full">
+          <label class="label flex-1">
+            <input id="reg-password" class="input-field" type="password" placeholder="Password" required />
+            <span class="title">PASSWORD</span>
+          </label>
+          <label class="label flex-1">
+            <input id="reg-password2" class="input-field" type="password" placeholder="Confirm" required />
+            <span class="title">CONFIRM PWD</span>
+          </label>
+        </div>
+
+        <button id="btn-reg-submit" class="checkout-btn mt-2" type="submit">Create Entity</button>
+
+        <div class="mt-4 text-center text-sm font-medium text-gray-500">
+          EXISTING ID? 
+          <button type="button" data-action="toggle-auth" class="text-tm-accent hover:text-gray-900 transition-colors ml-1 uppercase font-bold tracking-wider">Return to Login</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <div class="hidden lg:block w-[60%] h-full relative bg-[#050505] bg-grid overflow-hidden">
+    
+    <div class="absolute top-8 left-8 font-mono text-xs text-tm-border font-bold uppercase tracking-widest leading-relaxed">
+      SYS_STATE: <span class="text-tm-accent animate-pulse">ONLINE</span><br>
+      LAT_LONG: 40.7128° N, 74.0060° W<br>
+      TGT_LOCK: ACQUIRED<br>
+      <br>
+      [ СИСТЕМА ИНИЦИАЛИЗИРОВАНА ]
+    </div>
+
+    <div class="absolute top-8 right-8 text-right">
+      <h3 class="font-space font-black text-4xl text-white/10 tracking-tighter">管理</h3>
+      <p class="font-mono text-xs text-tm-muted mt-1 uppercase">Control System</p>
+    </div>
+
+    <div class="absolute inset-0 flex flex-col items-center justify-center p-12 z-10 pointer-events-none mix-blend-difference">
+      <div class="w-full max-w-4xl text-left">
+        <p class="font-mono text-sm text-tm-muted mb-4 uppercase tracking-[0.2em] border-l-2 border-tm-accent pl-3">Directive / 001</p>
+        <h2 class="font-space font-black text-6xl xl:text-8xl tracking-tighter leading-[0.9] text-white uppercase">
+          Eliminate <br>
+          <span class="text-tm-accent/80 italic">Chaos.</span><br>
+          Execute <br>
+          <span id="typing-element" class="text-tm-accent underline decoration-4 underline-offset-8"></span><span class="animate-pulse">_</span>
+        </h2>
+      </div>
+    </div>
+
+    <div class="absolute bottom-8 left-8 flex items-end gap-1 opacity-20 hover:opacity-100 transition-opacity">
+      <div class="w-1 h-12 bg-white"></div><div class="w-2 h-12 bg-white"></div><div class="w-1 h-12 bg-white"></div>
+      <div class="w-4 h-12 bg-white"></div><div class="w-1 h-12 bg-white"></div><div class="w-3 h-12 bg-white"></div>
+      <div class="w-1 h-12 bg-white"></div><div class="w-2 h-12 bg-white"></div><div class="w-5 h-12 bg-white"></div>
+      <div class="w-1 h-12 bg-white"></div>
+      <span class="font-mono text-[9px] text-white ml-2 tracking-widest rotate-180 vertical-text">994-01-AX</span>
+    </div>
+
+    <div class="absolute top-1/2 right-8 -translate-y-1/2 vertical-text">
+      <span class="font-space font-black text-5xl text-white/5 uppercase tracking-widest whitespace-nowrap">
+        Taskmaster Protocol
+      </span>
+    </div>
+
+    <div class="absolute top-1/4 left-1/4 w-8 h-8 border-t-2 border-l-2 border-tm-border opacity-50"></div>
+    <div class="absolute bottom-1/4 right-1/4 w-8 h-8 border-b-2 border-r-2 border-tm-border opacity-50"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[1px] bg-tm-border/20"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1px] h-full bg-tm-border/20"></div>
+
+    <div class="absolute -bottom-20 -right-20 font-sans font-black text-[300px] text-white/[0.02] leading-none pointer-events-none select-none">
+      任務
+    </div>
+
+  </div>
+
+  <script type="module" src="js/auth.js"></script>
+</body>
+</html>

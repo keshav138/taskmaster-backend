@@ -80,9 +80,8 @@ SIMPLE_JWT = {
 
 # CORS FOR FRONTEND
 
-# CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='').split(',')
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='').split(',')
+
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
@@ -185,7 +184,7 @@ CHANNEL_LAYERS = {
     'default' : {
         'BACKEND' : "channels_redis.core.RedisChannelLayer",
         'CONFIG' : {
-            "hosts" : [("127.0.0.1", 6379)], # default redis port 
+            "hosts" : [config('REDIS_URL', default='redis://127.0.0.1:6379/0')],
         },
     },
 }

@@ -25,8 +25,8 @@ services:
         build: ./backend
         restart: always
         command: ['sh', '-c', 'python manage.py migrate && daphne -b 0.0.0.0 -p 8000 taskmaster.asgi:application']
-        volumes:
-        - ./backend:/app # bind mount: hot reload, any change on backed on pc, shows in the running container
+        # volumes:
+        # - ./backend:/app # bind mount: hot reload, any change on backed on pc, shows in the running container
         ports:
         - '8000:8000'
         environment:
@@ -54,9 +54,9 @@ services:
         build: ./frontend
         restart: always
         ports:
-        - '8080:80'
-        volumes:
-            - ./frontend/:/usr/share/nginx/html
+        - '80:80'
+        # volumes:
+        #     - ./frontend/:/usr/share/nginx/html
         depends_on:
             - backend
         

@@ -94,9 +94,12 @@
           <span class="title">USERNAME</span>
         </label>
         
-        <label class="label">
-          <input id="login-password" class="input-field" type="password" placeholder="Password" required />
+        <label class="label relative">
+          <input id="login-password" class="input-field pr-10" type="password" placeholder="Password" required />
           <span class="title">PASSWORD</span>
+          <button type="button" class="toggle-password absolute right-3 top-[15px] text-gray-400 hover:text-tm-accent transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+          </button>
         </label>
 
         <button id="btn-login-submit" class="checkout-btn" type="submit">Connect</button>
@@ -135,13 +138,19 @@
         </label>
         
         <div class="flex gap-3 w-full">
-          <label class="label flex-1">
-            <input id="reg-password" class="input-field" type="password" placeholder="Password" required />
+          <label class="label flex-1 relative">
+            <input id="reg-password" class="input-field pr-10" type="password" placeholder="Password" required />
             <span class="title">PASSWORD</span>
+            <button type="button" class="toggle-password absolute right-3 top-[15px] text-gray-400 hover:text-tm-accent transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+            </button>
           </label>
-          <label class="label flex-1">
-            <input id="reg-password2" class="input-field" type="password" placeholder="Confirm" required />
+          <label class="label flex-1 relative">
+            <input id="reg-password2" class="input-field pr-10" type="password" placeholder="Confirm" required />
             <span class="title">CONFIRM PWD</span>
+            <button type="button" class="toggle-password absolute right-3 top-[15px] text-gray-400 hover:text-tm-accent transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+            </button>
           </label>
         </div>
 

@@ -2,5 +2,7 @@ Our frontend code was hardcoded to fetch API endpoints from port 8000, which in 
 Therefore the 8000 port was not allowed to enter.
 There were two fixes: either add a 8000 port in azure, or do a nginx conf that would reroute based on the configuration.
 
+[[Nginx Config]]
 [[Nginx config 1]]
 [[Nginx config 2]]
+[[Nginx config 3]]

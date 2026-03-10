@@ -1,7 +1,7 @@
 // js/api.js
 
 // Change this if your Django server runs on a different port
-const API_BASE_URL = 'http://127.0.0.1:8000/api'; 
+const API_BASE_URL = 'http://4.240.96.118:8000/api'; 
 
 export const api = {
     // 1. Auth Utilities

@@ -1,7 +1,9 @@
+[[Reading Docker-Compose Files]] -- `IMPORTANT AND USEFUL`
 [[Docker Docs]]
 [[Backend - DockerFile]]
 [[Frontend - DockerFile]]
 [[Docker Compose File]]
+
 
 
 Setting up a multi-container architecture is a rite of passage for data scientists and developers alike. Since you are already familiar with **Django** and **PostgreSQL** for your Task Management app, think of Docker as a way to "shrink-wrap" your entire environment so it works exactly the same on your laptop, a teammate’s computer, or a production server.

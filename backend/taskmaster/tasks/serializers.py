@@ -524,7 +524,7 @@ class PaginatedActivitySerializer(serializers.Serializer):
     
 ##------ NOTIFICATIONS SERIALIZER -------##
 
-class NotificationSerializer(serializers.Serializer):
+class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
         fields = ['id', 'message', 'task', 'is_read', 'created_at']

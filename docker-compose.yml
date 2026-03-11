@@ -49,7 +49,7 @@ services:
             - redis
             - db
         volumes:
-            - static_volume:/app/staticfiles  ## Django drops CSS here
+            - static_volume:/app/taskmaster/staticfiles  ## Django drops CSS here
     
     # 4. Nginx Vanilla JS 
     frontend:

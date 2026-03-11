@@ -48,6 +48,8 @@ services:
         depends_on:
             - redis
             - db
+        volumes:
+            - static_volume : /app/staticfiles  ## Django drops CSS here
     
     # 4. Nginx Vanilla JS 
     frontend:
@@ -60,6 +62,10 @@ services:
         depends_on:
             - backend
         
+        volumes:
+            - static_volume  : /django_static  # NGINX reads CSS from here
+        
     # define persistent storage
 volumes:
     postgres_data:
+    static_volume:

@@ -18,8 +18,8 @@
 
 <br>
 
-> **Live Demo:** [Demo Link](http://4.240.96.118/login.html)
-> **API Documentation:** [Swagger Documentation](http://4.240.96.118/api/docs/)
+> **Live Demo:** [Demo Link](https://taskmaster-keshav.duckdns.org/login.html)
+> **API Documentation:** [Swagger Documentation](https://taskmaster-keshav.duckdns.org/api/docs/)
 > **Interactive Video Walkthrough:** [Supademo](https://app.supademo.com/demo/cmmnqrj1l3kp29cvj9mfnxwj5?utm_source=link)
 
 TaskMaster is a comprehensive, fully containerized project management application. Designed to move beyond standard CRUD operations, this project implements complex relational databases, strict role-based access controls, and asynchronous WebSockets for real-time collaboration.
@@ -144,11 +144,11 @@ docker compose exec backend python manage.py collectstatic --noinput
 
 ### 5. Access the Application
 
-- **Frontend UI:** `http://localhost`
+- **Frontend UI:** `https://taskmaster-keshav.duckdns.org/`
     
-- **API Documentation:** `http://localhost/api/docs/`
+- **API Documentation:** `https://taskmaster-keshav.duckdns.org/api/docs/`
     
-- **Django Admin:** `http://localhost/admin/`
+- **Django Admin:** `https://taskmaster-keshav.duckdns.org/admin/`
     
 
 ---

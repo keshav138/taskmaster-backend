@@ -964,7 +964,9 @@ async function initNotifications() {
 
         const token = localStorage.getItem('access_token');
         if (token) {
-            notificationSocket = new WebSocket(`ws://${window.location.host}/ws/notifications/?token=${token}`);            
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss//' : 'ws//';
+            const wsUrl = `${wsProtocol}${window.location.host}/ws/notifications/?token=${token}`;
+            notificationSocket = new WebSocket(wsUrl);            
             notificationSocket.onmessage = function(e) {
                 const data = JSON.parse(e.data);
                 const notifPayload = (data.message && typeof data.message === 'object') ? data.message : data;

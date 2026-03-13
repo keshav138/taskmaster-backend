@@ -57,6 +57,7 @@ services:
         restart: always
         ports:
         - '80:80'
+        - '443:443'
         # volumes:
         #     - ./frontend/:/usr/share/nginx/html
         depends_on:
@@ -64,6 +65,7 @@ services:
         
         volumes:
             - static_volume:/django_static  # NGINX reads CSS from here
+            - /etc/letsencrypt:/etc/letsencrypt:ro # mount certificates as read only
         
     # define persistent storage
 volumes:

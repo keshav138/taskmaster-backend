@@ -24,6 +24,10 @@
 
 TaskMaster is a comprehensive, fully containerized project management application. Designed to move beyond standard CRUD operations, this project implements complex relational databases, strict role-based access controls, and asynchronous WebSockets for real-time collaboration.
 
+Test Credentials:
+Username : alice
+Password : password123
+
 > **Taskmaster Login**
 ![TaskMaster Login Board](./docs/images/login.png)
 
